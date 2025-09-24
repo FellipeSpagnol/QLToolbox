@@ -56,6 +56,10 @@ class Environment:
 
         return self._state, reward, finished
 
+    def reset(self) -> Tuple[int, int, int]:
+        self._state = self._start
+        return self._state
+
     def _calculate_reward(
         self,
         current_state: Tuple[int, int, int],
@@ -118,8 +122,60 @@ class Environment:
 
 
 class Agent:
-    def __init__(self) -> None:
-        pass
+    def __init__(
+        self,
+        state_shape: Tuple[int, int, int],
+        n_actions: int,
+        learning_rate: float = 0.1,
+        discount_factor: float = 0.99,
+        epsilon: float = 1.0,
+        epsilon_decay_rate: float = 0.995,
+        min_epsilon: float = 0.01,
+    ) -> None:
+        # Hyperparameters for Q-Learning
+        self._alpha = learning_rate
+        self._gamma = discount_factor
+        self._epsilon = epsilon
+        self._epsilon_decay = epsilon_decay_rate
+        self._epsilon_min = min_epsilon
+
+        # Q-Table initialization
+        self._n_actions = n_actions
+        self._q_table = np.zeros(state_shape + (n_actions,))
+
+    def choose_action(self, state: Tuple[int, int, int]) -> int:
+        if np.random.random() < self._epsilon:
+            # Exploration: select a random action
+            return np.random.randint(self._n_actions)
+        else:
+            # Exploitation: select the best action based on Q-table
+            return int(np.argmax(self._q_table[state]))
+
+    def update_q_table(
+        self,
+        state: Tuple[int, int, int],
+        action: int,
+        reward: float,
+        new_state: Tuple[int, int, int],
+    ) -> None:
+        """
+        Updates the Q-value for a given state-action pair using the Bellman equation.
+        """
+        old_value = self._q_table[state][action]
+        next_max = np.max(self._q_table[new_state])
+
+        # Q-Learning formula
+        new_value = old_value + self._alpha * (
+            reward + self._gamma * next_max - old_value
+        )
+        self._q_table[state][action] = new_value
+
+    def update_exploration_rate(self) -> None:
+        """
+        Decays the exploration rate (epsilon) to reduce exploration over time.
+        The rate does not fall below a minimum value.
+        """
+        self._epsilon = max(self._epsilon_min, self._epsilon * self._epsilon_decay)
 
 
 # Training Function
