@@ -68,9 +68,9 @@ class Environment:
     ) -> float:
 
         if new_state == self._goal:  # Goal reached
-            return 1.0
+            return 100.0
         if not self._is_valid_state(current_state, new_state):  # Invalid move
-            return -1.0
+            return -100.0
         else:  # Valid move
             return -0.01
 
@@ -129,7 +129,7 @@ class Agent:
         learning_rate: float = 0.1,
         discount_factor: float = 0.99,
         epsilon: float = 1.0,
-        epsilon_decay_rate: float = 0.995,
+        epsilon_decay_rate: float = 0.001,
         min_epsilon: float = 0.01,
     ) -> None:
         # Hyperparameters for Q-Learning
@@ -178,6 +178,8 @@ def train(
     environment: Environment,
     n_episodes: int = 20000,
     max_steps_per_episode: int = 100,
+    verbose: bool = False,
+    verbose_interval: int = 1000,
 ) -> List[float]:
     rewards_history = []
 
@@ -204,7 +206,7 @@ def train(
         rewards_history.append(total_episode_reward)
 
         # Console Logging
-        if (episode + 1) % 1000 == 0:
+        if verbose and (episode + 1) % verbose_interval == 0:
             print(f"Episode {episode + 1}/{n_episodes} | Epsilon: {agent._epsilon:.3f}")
 
     return rewards_history
