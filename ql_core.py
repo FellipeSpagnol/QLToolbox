@@ -158,9 +158,6 @@ class Agent:
         reward: float,
         new_state: Tuple[int, int, int],
     ) -> None:
-        """
-        Updates the Q-value for a given state-action pair using the Bellman equation.
-        """
         old_value = self._q_table[state][action]
         next_max = np.max(self._q_table[new_state])
 
@@ -171,13 +168,43 @@ class Agent:
         self._q_table[state][action] = new_value
 
     def update_exploration_rate(self) -> None:
-        """
-        Decays the exploration rate (epsilon) to reduce exploration over time.
-        The rate does not fall below a minimum value.
-        """
         self._epsilon = max(self._epsilon_min, self._epsilon * self._epsilon_decay)
 
 
 # Training Function
-def train(agent: Agent, environment: Environment) -> None:
-    pass
+# Training Function
+def train(
+    agent: Agent,
+    environment: Environment,
+    n_episodes: int = 20000,
+    max_steps_per_episode: int = 100,
+) -> List[float]:
+    rewards_history = []
+
+    for episode in range(n_episodes):
+        state = environment.reset()
+        total_episode_reward = 0.0
+        finished = False
+
+        for step in range(max_steps_per_episode):
+            action = agent.choose_action(state)  # Action selection
+            new_state, reward, finished = environment.step(action)  # Environment step
+            agent.update_q_table(state, action, reward, new_state)  # Q-Table update
+
+            # State update
+            state = new_state
+            total_episode_reward += reward
+
+            if finished:  # Episode termination check
+                break
+
+        agent.update_exploration_rate()  # Decay exploration rate
+
+        # Data backup update
+        rewards_history.append(total_episode_reward)
+
+        # Console Logging
+        if (episode + 1) % 1000 == 0:
+            print(f"Episode {episode + 1}/{n_episodes} | Epsilon: {agent._epsilon:.3f}")
+
+    return rewards_history
