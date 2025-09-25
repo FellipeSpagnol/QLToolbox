@@ -1,7 +1,7 @@
 # Imports
 import numpy as np
 import math as m
-from typing import Optional, Union, List, Tuple, Dict, Literal
+from typing import Optional, Union, List, Tuple, Dict, Literal, Any
 
 
 # Environment Class
@@ -9,22 +9,30 @@ class Oriented2DGrid:
     def __init__(
         self,
         grid_size: Tuple[int, int],
-        start: Tuple[int, int, int],
-        goal: Tuple[int, int, int],
+        start: Tuple[int, int, float],
+        goal: Tuple[int, int, float],
         actions_type: Literal["omni"],
+        reward_gains: Dict[str, float] = {
+            "goal": 100.0,
+            "invalid": 100.0,
+            "step": 0.1,
+        },
     ) -> None:
         # State space definition
         self._x_size, self._y_size = grid_size
         self._psi_size: int = 8
 
         # Initial and goal states
-        self._start = start
-        self._goal = goal
+        self._start = (start[0], start[1], self._rad2index(start[2]))
+        self._goal = (goal[0], goal[1], self._rad2index(goal[2]))
         self._state = self._start
 
         # Action space definition
         self._angles = np.linspace(0, 2 * m.pi, self._psi_size, endpoint=False)
         self._actions = self._define_actions(actions_type)
+
+        # Reward structure
+        self._reward_gains = reward_gains
 
     @property
     def state_shape(self) -> Tuple[int, int, int]:
@@ -68,11 +76,11 @@ class Oriented2DGrid:
     ) -> float:
 
         if new_state == self._goal:  # Goal reached
-            return 100.0
+            return self._reward_gains["goal"]
         if not self._is_valid_state(current_state, new_state):  # Invalid move
-            return -100.0
+            return -self._reward_gains["invalid"]
         else:  # Valid move
-            return -0.01
+            return -self._reward_gains["step"]
 
     def _is_valid_state(
         self,
@@ -114,38 +122,43 @@ class Oriented2DGrid:
                 (-1, -1, 0),  # Left Down
                 (1, -1, 0),  # Right Down
                 (-1, 1, 0),  # Left Up
-                (0, 0, +1),  # Rotate Clockwise
                 (0, 0, -1),  # Rotate Counter-Clockwise
+                (0, 0, +1),  # Rotate Clockwise
             ]
             return actions
         return []
 
+    def _rad2index(self, angle: float) -> int:
+        angle = angle % (2 * m.pi)  # Normalize angle to [0, 2π)
+        index = int(round(angle / (2 * m.pi) * self._psi_size)) % self._psi_size
+        return index
+
 
 # Agent Class
 class QLAgent:
+
     def __init__(
         self,
         state_shape: Tuple[int, int, int],
         n_actions: int,
         learning_rate: float = 0.1,
         discount_factor: float = 0.99,
-        epsilon: float = 1.0,
-        epsilon_decay_rate: float = 0.001,
-        min_epsilon: float = 0.01,
+        e_greedy_type: str = "exponential",
+        epsilo_start: float = 1.0,
     ) -> None:
         # Hyperparameters for Q-Learning
         self._alpha = learning_rate
         self._gamma = discount_factor
-        self._epsilon = epsilon
-        self._epsilon_decay = epsilon_decay_rate
-        self._epsilon_min = min_epsilon
+        self._e_greedy_type = e_greedy_type
+        self._epsilon_start = epsilo_start
+        self.epsilon = self._epsilon_start
 
         # Q-Table initialization
         self._n_actions = n_actions
         self._q_table = np.zeros(state_shape + (n_actions,))
 
     def choose_action(self, state: Tuple[int, int, int]) -> int:
-        if np.random.random() < self._epsilon:
+        if np.random.random() < self.epsilon:
             # Exploration: select a random action
             return np.random.randint(self._n_actions)
         else:
@@ -168,8 +181,25 @@ class QLAgent:
         )
         self._q_table[state][action] = new_value
 
-    def update_exploration_rate(self) -> None:
-        self._epsilon = max(self._epsilon_min, self._epsilon * self._epsilon_decay)
+    def update_exploration_rate(self, n_episodes: int) -> None:
+        # Update epsilon
+        min_epsilon = 0.1
+        n_episodes = n_episodes
+
+        if self.epsilon > min_epsilon:
+            if self._e_greedy_type == "linear":
+                self.epsilon = self.epsilon - (
+                    (self._epsilon_start - min_epsilon) / (n_episodes * 0.99)
+                )
+            elif self._e_greedy_type == "exponential":
+                decay_ratio = (min_epsilon / self._epsilon_start) ** (
+                    1 / (n_episodes * 0.99)
+                )
+                self.epsilon *= decay_ratio
+            else:
+                raise ValueError("Invalid egreedy type.")
+
+        self.epsilon = max(min_epsilon, self.epsilon)
 
 
 # Training Function
@@ -177,11 +207,20 @@ def train(
     agent: QLAgent,
     environment: Oriented2DGrid,
     n_episodes: int = 20000,
-    max_steps_per_episode: int = 100,
     verbose: bool = False,
     verbose_interval: int = 1000,
-) -> List[float]:
-    rewards_history = []
+) -> Dict[str, List[Any]]:
+    data_backup: Dict[str, List[Any]] = {}
+
+    rewards_history: list[float] = []
+    epsilon_history: list[float] = []
+
+    max_steps_per_episode = (
+        environment.state_shape[0]
+        * environment.state_shape[1]
+        * environment.state_shape[2]
+        * 2
+    )
 
     for episode in range(n_episodes):
         state = environment.reset()
@@ -200,13 +239,17 @@ def train(
             if finished:  # Episode termination check
                 break
 
-        agent.update_exploration_rate()  # Decay exploration rate
+        agent.update_exploration_rate(n_episodes)  # Decay exploration rate
 
-        # Data backup update
+        # Individual Data backup update
         rewards_history.append(total_episode_reward)
+        epsilon_history.append(agent.epsilon)
 
         # Console Logging
         if verbose and (episode + 1) % verbose_interval == 0:
-            print(f"Episode {episode + 1}/{n_episodes} | Epsilon: {agent._epsilon:.3f}")
+            print(f"Episode {episode + 1}/{n_episodes} | Epsilon: {agent.epsilon:.3f}")
 
-    return rewards_history
+    data_backup["rewards_history"] = rewards_history
+    data_backup["epsilon_history"] = epsilon_history
+
+    return data_backup

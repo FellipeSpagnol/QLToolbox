@@ -1,11 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from ql_core import Oriented2DGrid, QLAgent
 
 
-def plot_rewards(rewards_history):
-    """
-    Gera um gráfico mostrando a recompensa total por episódio ao longo do treinamento.
-    """
+def plot_rewards(rewards_history: list[float]):
     plt.figure(figsize=(12, 6))
     plt.plot(rewards_history, alpha=0.6, label="Recompensa por Episódio")
 
@@ -22,11 +20,7 @@ def plot_rewards(rewards_history):
     plt.show()
 
 
-def visualize_policy(agent, grid_size, goal):
-    """
-    Cria uma visualização da política aprendida pelo agente.
-    Para cada orientação possível, mostra a melhor ação em cada célula do grid.
-    """
+def visualize_policy(agent: QLAgent, environment: Oriented2DGrid):
     # Mapeamento do índice da ação para um símbolo intuitivo
     action_symbols = {
         0: "→",  # Direita
@@ -41,12 +35,15 @@ def visualize_policy(agent, grid_size, goal):
         9: "↺",  # Girar no sentido anti-horário
     }
 
-    x_size, y_size = grid_size
+    x_size, y_size = environment.state_shape[0], environment.state_shape[1]
     psi_size = agent._q_table.shape[2]
 
     # Cria 8 subplots, um para cada orientação (psi)
     fig, axes = plt.subplots(2, 4, figsize=(18, 9))
-    fig.suptitle("Política Aprendida para Cada Orientação (ψ)", fontsize=20)
+    fig.suptitle(
+        f"Política Aprendida para Cada Orientação (ψ)",
+        fontsize=20,
+    )
     axes = axes.flatten()
 
     for psi in range(psi_size):
@@ -66,27 +63,43 @@ def visualize_policy(agent, grid_size, goal):
                 state = (x, y, psi)
 
                 # Marca o estado objetivo com um 'G' verde
-                if (x, y) == (goal[0], goal[1]):
-                    ax.text(
-                        x,
-                        y,
-                        "G",
-                        ha="center",
-                        va="center",
-                        color="green",
-                        fontsize=16,
-                        weight="bold",
-                    )
-                    continue
+                # if (x, y) == (goal[0], goal[1]):
+                #     ax.text(
+                #         x,
+                #         y,
+                #         "G",
+                #         ha="center",
+                #         va="center",
+                #         color="green",
+                #         fontsize=16,
+                #         weight="bold",
+                #     )
+                #     continue
 
                 # Encontra a melhor ação para o estado (x, y, psi)
                 best_action_index = np.argmax(agent._q_table[state])
-                symbol = action_symbols[best_action_index]
+                symbol = action_symbols[int(best_action_index)]
 
                 # Exibe o símbolo da ação na célula
                 ax.text(
                     x, y, symbol, ha="center", va="center", color="black", fontsize=14
                 )
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.tight_layout(rect=(0, 0, 1, 0.95))
+    plt.show()
+
+
+def plot_epsilon_history(epsilon_history: list[float]):
+    """
+    Gera um gráfico mostrando o decaimento do valor de epsilon
+    ao longo dos episódios de treinamento.
+    """
+    plt.figure(figsize=(12, 6))
+    plt.plot(epsilon_history)
+    plt.title("Histórico de Decaimento do Epsilon")
+    plt.xlabel("Episódio")
+    plt.ylabel("Valor de Epsilon")
+    plt.grid(True)
+    # A escala logarítmica ajuda a visualizar melhor o decaimento exponencial
+    plt.yscale("log")
     plt.show()
