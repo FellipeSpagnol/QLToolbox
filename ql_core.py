@@ -5,7 +5,7 @@ from typing import Optional, Union, List, Tuple, Dict, Literal
 
 
 # Class Definition
-class Environment:
+class Oriented2DGrid:
     def __init__(
         self,
         grid_size: Tuple[int, int],
@@ -121,7 +121,7 @@ class Environment:
         return []
 
 
-class Agent:
+class QLAgent:
     def __init__(
         self,
         state_shape: Tuple[int, int, int],
@@ -174,8 +174,8 @@ class Agent:
 # Training Function
 # Training Function
 def train(
-    agent: Agent,
-    environment: Environment,
+    agent: QLAgent,
+    environment: Oriented2DGrid,
     n_episodes: int = 20000,
     max_steps_per_episode: int = 100,
     verbose: bool = False,
