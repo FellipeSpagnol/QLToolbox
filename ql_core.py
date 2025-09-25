@@ -4,7 +4,7 @@ import math as m
 from typing import Optional, Union, List, Tuple, Dict, Literal
 
 
-# Class Definition
+# Environment Class
 class Oriented2DGrid:
     def __init__(
         self,
@@ -121,6 +121,7 @@ class Oriented2DGrid:
         return []
 
 
+# Agent Class
 class QLAgent:
     def __init__(
         self,
@@ -171,7 +172,6 @@ class QLAgent:
         self._epsilon = max(self._epsilon_min, self._epsilon * self._epsilon_decay)
 
 
-# Training Function
 # Training Function
 def train(
     agent: QLAgent,
