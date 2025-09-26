@@ -183,17 +183,17 @@ class QLAgent:
 
     def update_exploration_rate(self, n_episodes: int) -> None:
         # Update epsilon
-        min_epsilon = 0.1
+        min_epsilon = 0.8
         n_episodes = n_episodes
 
         if self.epsilon > min_epsilon:
             if self._e_greedy_type == "linear":
                 self.epsilon = self.epsilon - (
-                    (self._epsilon_start - min_epsilon) / (n_episodes * 0.99)
+                    (self._epsilon_start - min_epsilon) / (n_episodes * 0.5)
                 )
             elif self._e_greedy_type == "exponential":
                 decay_ratio = (min_epsilon / self._epsilon_start) ** (
-                    1 / (n_episodes * 0.99)
+                    1 / (n_episodes * 0.5)
                 )
                 self.epsilon *= decay_ratio
             else:
