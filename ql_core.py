@@ -17,6 +17,7 @@ class Oriented2DGrid:
             "invalid": 100.0,
             "step": 0.1,
         },
+        obs_grid: Optional[np.ndarray] = None,
     ) -> None:
         # State space definition
         self._x_size, self._y_size = grid_size
@@ -33,6 +34,9 @@ class Oriented2DGrid:
 
         # Reward structure
         self._reward_gains = reward_gains
+
+        # Obstacles grid
+        self._obs_grid = obs_grid
 
     @property
     def state_shape(self) -> Tuple[int, int, int]:
@@ -79,8 +83,13 @@ class Oriented2DGrid:
             return self._reward_gains["goal"]
         if not self._is_valid_state(current_state, new_state):  # Invalid move
             return -self._reward_gains["invalid"]
-        else:  # Valid move
-            return -self._reward_gains["step"]
+
+        rstep = -self._reward_gains["step"]  # Step penalty
+
+        # Sum all rewards
+        reward = rstep
+
+        return reward
 
     def _is_valid_state(
         self,
@@ -94,7 +103,12 @@ class Oriented2DGrid:
             0 <= yf < self._y_size
         )  # Check grid boundaries
 
-        return inside_grid
+        if self._obs_grid is not None:
+            not_collision = self._obs_grid[yf, xf] == 0  # Check for obstacles
+        else:
+            not_collision = True
+
+        return inside_grid and not_collision
 
     def _calculate_new_state(
         self,
