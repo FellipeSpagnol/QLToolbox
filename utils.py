@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from ql_core import Oriented2DGrid, QLAgent
 
 
@@ -38,6 +39,9 @@ def visualize_policy(agent: QLAgent, environment: Oriented2DGrid):
     x_size, y_size = environment.state_shape[0], environment.state_shape[1]
     psi_size = agent._q_table.shape[2]
 
+    # Acessa a grade de obstáculos de forma segura
+    obs_grid = getattr(environment, "_obs_grid", None)
+
     # Cria 8 subplots, um para cada orientação (psi)
     fig, axes = plt.subplots(2, 4, figsize=(18, 9))
     fig.suptitle(
@@ -55,26 +59,24 @@ def visualize_policy(agent: QLAgent, environment: Oriented2DGrid):
         ax.set_yticks(np.arange(y_size))
         ax.grid(True)
         ax.set_aspect("equal")
-        # A linha a seguir foi removida para que o eixo Y cresça para cima
-        # ax.invert_yaxis()
 
         for x in range(x_size):
             for y in range(y_size):
-                state = (x, y, psi)
+                # MODIFICAÇÃO: Verifica se há um obstáculo na posição (x, y)
+                if obs_grid is not None and obs_grid[x, y] != 0:
+                    # Desenha um quadrado preto para representar o obstáculo
+                    rect = patches.Rectangle(
+                        (x - 0.5, y - 0.5),
+                        1,
+                        1,
+                        linewidth=1,
+                        edgecolor="none",
+                        facecolor="black",
+                    )
+                    ax.add_patch(rect)
+                    continue  # Pula para a próxima célula
 
-                # Marca o estado objetivo com um 'G' verde
-                # if (x, y) == (goal[0], goal[1]):
-                #     ax.text(
-                #         x,
-                #         y,
-                #         "G",
-                #         ha="center",
-                #         va="center",
-                #         color="green",
-                #         fontsize=16,
-                #         weight="bold",
-                #     )
-                #     continue
+                state = (x, y, psi)
 
                 # Encontra a melhor ação para o estado (x, y, psi)
                 best_action_index = np.argmax(agent._q_table[state])

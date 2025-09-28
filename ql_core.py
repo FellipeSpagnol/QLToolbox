@@ -103,8 +103,8 @@ class Oriented2DGrid:
             0 <= yf < self._y_size
         )  # Check grid boundaries
 
-        if self._obs_grid is not None:
-            not_collision = self._obs_grid[yf, xf] == 0  # Check for obstacles
+        if self._obs_grid is not None and inside_grid:
+            not_collision = self._obs_grid[xf, yf] == 0  # Check for obstacles
         else:
             not_collision = True
 
