@@ -15,11 +15,12 @@ class Oriented2DGrid:
         reward_gains: Dict[str, float] = {
             "goal": 100.0,
             "invalid": 100.0,
-            "step": 0.1,
+            "move": 0.1,
             "turn": 0.1,
             "nearby_obs": 0.1,
         },
         obs_grid: Optional[np.ndarray] = None,
+        random_start_percentage: float = 0.1,
     ) -> None:
         # State space definition
         self._x_size, self._y_size = grid_size
@@ -39,7 +40,17 @@ class Oriented2DGrid:
 
         # Obstacles grid
         self._obs_grid = obs_grid
+
+        # Precompute auxiliary data
         self._nearby_obs_grid = self._precompute_safety_penalty_matrix(min_dist=2.0)
+        self._valid_start_positions = (
+            np.argwhere(self._obs_grid == 0)
+            if self._obs_grid is not None
+            else [(x, y) for x in range(self._x_size) for y in range(self._y_size)]
+        )
+
+        # Other parameters
+        self._random_start_percentage = random_start_percentage
 
     @property
     def state_shape(self) -> Tuple[int, int, int]:
@@ -72,8 +83,18 @@ class Oriented2DGrid:
         return self._state, reward, finished
 
     def reset(self) -> Tuple[int, int, int]:
-        self._state = self._start
-        return self._state
+        if np.random.random() < self._random_start_percentage:
+            random_index = np.random.randint(len(self._valid_start_positions))
+            xr, yr = self._valid_start_positions[random_index]
+            psir = np.random.randint(self._psi_size)
+
+            random_state = (xr, yr, psir)
+
+            self._state = random_state
+            return random_state
+        else:
+            self._state = self._start
+            return self._start
 
     def _calculate_reward(
         self,
@@ -87,7 +108,9 @@ class Oriented2DGrid:
         if not self._is_valid_state(current_state, new_state):  # Invalid move
             return -self._reward_gains["invalid"]
 
-        rstep = -self._reward_gains["step"]  # Step penalty
+        rmove = -self._reward_gains["move"] * np.linalg.norm(
+            [action[0], action[1]]
+        )  # Move Penalty
 
         # Turn Penalty
         turn_angle = abs(action[2])
@@ -100,7 +123,7 @@ class Oriented2DGrid:
         )
 
         # Sum all rewards
-        reward = rstep + rturn + robs
+        reward = rmove + rturn + robs
 
         return reward
 

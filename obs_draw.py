@@ -111,5 +111,5 @@ if __name__ == "__main__":
 
     # Chama a função para iniciar o processo
     grade_final = criar_e_salvar_grade_de_obstaculos(
-        LARGURA_GRID, ALTURA_GRID, "grid_relatorio.npy"
+        LARGURA_GRID, ALTURA_GRID, "grid_relatorio_apertada.npy"
     )
