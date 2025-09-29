@@ -103,12 +103,22 @@ class Oriented2DGrid:
             0 <= yf < self._y_size
         )  # Check grid boundaries
 
-        if self._obs_grid is not None and inside_grid:
-            not_collision = self._obs_grid[xf, yf] == 0  # Check for obstacles
-        else:
-            not_collision = True
+        if not inside_grid:
+            return False
 
-        return inside_grid and not_collision
+        if self._obs_grid is not None:
+            # Collision with obstacle
+            if self._obs_grid[xf, yf]:
+                return False
+
+            # Diagonal corner check
+            corner1_is_obstacle = self._obs_grid[x, yf]
+            corner2_is_obstacle = self._obs_grid[xf, y]
+
+            if corner1_is_obstacle or corner2_is_obstacle:
+                return False
+
+        return True
 
     def _calculate_new_state(
         self,

@@ -104,27 +104,12 @@ def criar_e_salvar_grade_de_obstaculos(
 if __name__ == "__main__":
     # --- Exemplo de Uso ---
     # Defina aqui as dimensões desejadas para a sua grade
-    LARGURA_GRID = 5  # Tamanho em X (horizontal)
-    ALTURA_GRID = 5  # Tamanho em Y (vertical)
+    LARGURA_GRID = 10  # Tamanho em X (horizontal)
+    ALTURA_GRID = 10  # Tamanho em Y (vertical)
 
     print(f"Abrindo grade interativa de {LARGURA_GRID}x{ALTURA_GRID}...")
 
     # Chama a função para iniciar o processo
-    grade_final = criar_e_salvar_grade_de_obstaculos(LARGURA_GRID, ALTURA_GRID)
-
-    # Opcional: Verificar o arquivo salvo
-    try:
-        caminho_arquivo = os.path.join("grids", "grid_de_obstaculos.npy")
-        grade_carregada = np.load(caminho_arquivo)
-        print("\n--- Verificação ---")
-        print(f"Arquivo '{caminho_arquivo}' carregado com sucesso.")
-        if np.array_equal(grade_final, grade_carregada):
-            print(
-                "Verificação bem-sucedida: A matriz salva é idêntica à retornada pela função."
-            )
-        else:
-            print(
-                "Erro na verificação: A matriz salva é diferente da retornada pela função."
-            )
-    except Exception as e:
-        print(f"Ocorreu um erro ao verificar o arquivo: {e}")
+    grade_final = criar_e_salvar_grade_de_obstaculos(
+        LARGURA_GRID, ALTURA_GRID, "grid_relatorio.npy"
+    )
