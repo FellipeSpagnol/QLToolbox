@@ -37,7 +37,7 @@ def visualize_policy(agent: QLAgent, environment: Oriented2DGrid):
     }
 
     x_size, y_size = environment.state_shape[0], environment.state_shape[1]
-    psi_size = agent._q_table.shape[2]
+    psi_size = agent.q_table.shape[2]
 
     # Acessa a grade de obstáculos de forma segura
     obs_grid = getattr(environment, "_obs_grid", None)
@@ -79,7 +79,7 @@ def visualize_policy(agent: QLAgent, environment: Oriented2DGrid):
                 state = (x, y, psi)
 
                 # Encontra a melhor ação para o estado (x, y, psi)
-                best_action_index = np.argmax(agent._q_table[state])
+                best_action_index = np.argmax(agent.q_table[state])
                 symbol = action_symbols[int(best_action_index)]
 
                 # Exibe o símbolo da ação na célula

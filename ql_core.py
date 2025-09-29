@@ -16,6 +16,8 @@ class Oriented2DGrid:
             "goal": 100.0,
             "invalid": 100.0,
             "step": 0.1,
+            "turn": 0.1,
+            "nearby_obs": 0.1,
         },
         obs_grid: Optional[np.ndarray] = None,
     ) -> None:
@@ -37,6 +39,7 @@ class Oriented2DGrid:
 
         # Obstacles grid
         self._obs_grid = obs_grid
+        self._nearby_obs_grid = self._precompute_safety_penalty_matrix(min_dist=2.0)
 
     @property
     def state_shape(self) -> Tuple[int, int, int]:
@@ -86,8 +89,18 @@ class Oriented2DGrid:
 
         rstep = -self._reward_gains["step"]  # Step penalty
 
+        # Turn Penalty
+        turn_angle = abs(action[2])
+        rturn = -self._reward_gains["turn"] * turn_angle
+
+        # Obstacle Safety Penalty
+        robs = (
+            -self._reward_gains["nearby_obs"]
+            * self._nearby_obs_grid[new_state[0], new_state[1]]
+        )
+
         # Sum all rewards
-        reward = rstep
+        reward = rstep + rturn + robs
 
         return reward
 
@@ -152,6 +165,32 @@ class Oriented2DGrid:
             return actions
         return []
 
+    def _precompute_safety_penalty_matrix(
+        self,
+        min_dist: float,
+    ) -> np.ndarray:
+        if self._obs_grid is None:
+            return np.zeros((self._x_size, self._y_size))
+
+        coords = np.where(self._obs_grid == 1)
+        obstacle_coords = list(zip(coords[0], coords[1]))
+
+        if not obstacle_coords:
+            return np.zeros((self._x_size, self._y_size))
+
+        yy, xx = np.meshgrid(np.arange(self._y_size), np.arange(self._x_size))
+        grid_coords = np.stack([xx, yy], axis=-1)
+
+        nearby_obs_matrix = np.zeros((self._x_size, self._y_size), dtype=float)
+
+        for ox, oy in obstacle_coords:
+            dist_matrix = np.linalg.norm(grid_coords - (ox, oy), axis=2)
+            penalty_for_this_obstacle = min_dist - dist_matrix
+            penalty_for_this_obstacle[dist_matrix >= min_dist] = 0.0
+            nearby_obs_matrix += penalty_for_this_obstacle
+
+        return nearby_obs_matrix
+
     def _rad2index(self, angle: float) -> int:
         angle = angle % (2 * m.pi)  # Normalize angle to [0, 2π)
         index = int(round(angle / (2 * m.pi) * self._psi_size)) % self._psi_size
@@ -179,7 +218,7 @@ class QLAgent:
 
         # Q-Table initialization
         self._n_actions = n_actions
-        self._q_table = np.zeros(state_shape + (n_actions,))
+        self.q_table = np.zeros(state_shape + (n_actions,))
 
     def choose_action(self, state: Tuple[int, int, int]) -> int:
         if np.random.random() < self.epsilon:
@@ -187,7 +226,7 @@ class QLAgent:
             return np.random.randint(self._n_actions)
         else:
             # Exploitation: select the best action based on Q-table
-            return int(np.argmax(self._q_table[state]))
+            return int(np.argmax(self.q_table[state]))
 
     def update_q_table(
         self,
@@ -196,28 +235,27 @@ class QLAgent:
         reward: float,
         new_state: Tuple[int, int, int],
     ) -> None:
-        old_value = self._q_table[state][action]
-        next_max = np.max(self._q_table[new_state])
+        old_value = self.q_table[state][action]
+        next_max = np.max(self.q_table[new_state])
 
         # Q-Learning formula
         new_value = old_value + self._alpha * (
             reward + self._gamma * next_max - old_value
         )
-        self._q_table[state][action] = new_value
+        self.q_table[state][action] = new_value
 
     def update_exploration_rate(self, n_episodes: int) -> None:
         # Update epsilon
-        min_epsilon = 0.8
-        n_episodes = n_episodes
+        min_epsilon = 0.4
 
         if self.epsilon > min_epsilon:
             if self._e_greedy_type == "linear":
                 self.epsilon = self.epsilon - (
-                    (self._epsilon_start - min_epsilon) / (n_episodes * 0.5)
+                    (self._epsilon_start - min_epsilon) / (n_episodes * 0.8)
                 )
             elif self._e_greedy_type == "exponential":
                 decay_ratio = (min_epsilon / self._epsilon_start) ** (
-                    1 / (n_episodes * 0.5)
+                    1 / (n_episodes * 0.8)
                 )
                 self.epsilon *= decay_ratio
             else:
