@@ -228,7 +228,7 @@ class QLAgent:
         state_shape: Tuple[int, int, int],
         n_actions: int,
         learning_rate: float = 0.1,
-        discount_factor: float = 0.99,
+        discount_factor: float = 0.9,
         e_greedy_type: str = "exponential",
         epsilo_start: float = 1.0,
     ) -> None:
