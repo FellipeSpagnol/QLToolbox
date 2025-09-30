@@ -104,12 +104,12 @@ def criar_e_salvar_grade_de_obstaculos(
 if __name__ == "__main__":
     # --- Exemplo de Uso ---
     # Defina aqui as dimensões desejadas para a sua grade
-    LARGURA_GRID = 10  # Tamanho em X (horizontal)
-    ALTURA_GRID = 10  # Tamanho em Y (vertical)
+    LARGURA_GRID = 5  # Tamanho em X (horizontal)
+    ALTURA_GRID = 5  # Tamanho em Y (vertical)
 
     print(f"Abrindo grade interativa de {LARGURA_GRID}x{ALTURA_GRID}...")
 
     # Chama a função para iniciar o processo
     grade_final = criar_e_salvar_grade_de_obstaculos(
-        LARGURA_GRID, ALTURA_GRID, "grid_relatorio_apertada.npy"
+        LARGURA_GRID, ALTURA_GRID, "grid_5x5.npy"
     )

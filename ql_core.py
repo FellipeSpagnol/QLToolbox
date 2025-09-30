@@ -11,7 +11,7 @@ class Oriented2DGrid:
         grid_size: Tuple[int, int],
         start: Tuple[int, int, float],
         goal: Tuple[int, int, float],
-        actions_type: Literal["omni"],
+        actions_type: Literal["omni", "diff"],
         reward_gains: Dict[str, float] = {
             "goal": 100.0,
             "invalid": 100.0,
@@ -33,7 +33,7 @@ class Oriented2DGrid:
 
         # Action space definition
         self._angles = np.linspace(0, 2 * m.pi, self._psi_size, endpoint=False)
-        self._actions = self._define_actions(actions_type)
+        self._actions_type = actions_type
 
         # Reward structure
         self._reward_gains = reward_gains
@@ -59,6 +59,35 @@ class Oriented2DGrid:
     @property
     def n_actions(self) -> int:
         return len(self._actions)
+
+    @property
+    def _actions(self) -> List[Tuple[int, int, int]]:
+        def rint(x):
+            return int(np.round(x))
+
+        angle = self._index2rad(self._state[2])
+
+        if self._actions_type == "omni":  # Actions for omnidirectional movement
+            actions = [
+                (1, 0, 0),  # Right
+                (-1, 0, 0),  # Left
+                (0, 1, 0),  # Up
+                (0, -1, 0),  # Down
+                (1, 1, 0),  # Right Up
+                (-1, -1, 0),  # Left Down
+                (1, -1, 0),  # Right Down
+                (-1, 1, 0),  # Left Up
+                (0, 0, -1),  # Rotate Counter-Clockwise
+                (0, 0, +1),  # Rotate Clockwise
+            ]
+        elif self._actions_type == "diff":  # Actions for differential drive movement
+            actions = [
+                (rint(m.cos(angle)), rint(m.sin(angle)), 0),
+                (-rint(m.cos(angle)), -rint(m.sin(angle)), 0),
+                (0, 0, +1),
+                (0, 0, -1),
+            ]
+        return actions
 
     def step(self, action_index: int) -> Tuple[Tuple[int, int, int], float, bool]:
         current_state = self._state
@@ -171,23 +200,6 @@ class Oriented2DGrid:
 
         return (new_x, new_y, new_psi)
 
-    def _define_actions(self, actions_type: str) -> List[Tuple[int, int, int]]:
-        if actions_type == "omni":  # Actions for omnidirectional movement
-            actions = [
-                (1, 0, 0),  # Right
-                (-1, 0, 0),  # Left
-                (0, 1, 0),  # Up
-                (0, -1, 0),  # Down
-                (1, 1, 0),  # Right Up
-                (-1, -1, 0),  # Left Down
-                (1, -1, 0),  # Right Down
-                (-1, 1, 0),  # Left Up
-                (0, 0, -1),  # Rotate Counter-Clockwise
-                (0, 0, +1),  # Rotate Clockwise
-            ]
-            return actions
-        return []
-
     def _precompute_safety_penalty_matrix(
         self,
         min_dist: float,
@@ -218,6 +230,11 @@ class Oriented2DGrid:
         angle = angle % (2 * m.pi)  # Normalize angle to [0, 2π)
         index = int(round(angle / (2 * m.pi) * self._psi_size)) % self._psi_size
         return index
+
+    def _index2rad(self, index: int) -> float:
+        index = index % self._psi_size
+        angle = (index / self._psi_size) * (2 * m.pi)
+        return angle
 
 
 # Agent Class
