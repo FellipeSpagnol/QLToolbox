@@ -1,0 +1,272 @@
+/* style.qss - Stylesheet for the Application */
+
+/* General Window and Widget Style */
+QWidget {
+    background-color: #fdfdfe; /* A slightly off-white color */
+    color: #2c3e50; /* Dark and soft text color */
+    font-family: "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;
+}
+
+/* Style for Title Labels */
+QLabel#titleLabel {
+    font-size: 32px;
+    font-weight: bold;
+    color: #34495e; /* A dark grayish-blue */
+    padding-bottom: 10px;
+}
+
+QLabel#titleImage {
+    margin: 15px;
+}
+
+/* --- Button Styles --- */
+
+/* Base style for all buttons, for consistency */
+QPushButton {
+    border: 1px solid #d1d5da;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    min-width: 150px;
+    background-color: #fafbfc;
+}
+
+QPushButton:hover {
+    background-color: #f3f4f6;
+    border-color: #aeb5bc;
+}
+
+QPushButton:pressed {
+    background-color: #e8eaed;
+    border-color: #aeb5bc;
+}
+
+/* Style for Navigation Buttons (class "navigation") */
+QPushButton[class="navigation"] {
+    background-color: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+QPushButton[class="navigation"]:hover {
+    background-color: #2980b9;
+}
+QPushButton[class="navigation"]:pressed {
+    background-color: #2471a3;
+}
+
+/* Style for the Grid confirmation button */
+QPushButton#confirmButton {
+    background-color: #2ecc71;
+    color: white;
+    border-color: #27ae60;
+}
+QPushButton#confirmButton:hover {
+    background-color: #27ae60;
+}
+QPushButton#confirmButton:pressed {
+    background-color: #229954;
+}
+
+/* Style for the close button */
+QPushButton#closeButton {
+    background-color: #e74c3c;
+    color: white;
+    border-color: #c0392b;
+}
+QPushButton#closeButton:hover {
+    background-color: #c0392b;
+}
+QPushButton#closeButton:pressed {
+    background-color: #a93226;
+}
+
+QPushButton#savePathButton {
+    background-color: #3498db; /* A neutral gray */
+    color: white;
+    border-color: #2980b9;
+    min-width: 200px; /* Adjust width as needed */
+}
+QPushButton#savePathButton:hover {
+    background-color: #2980b9;
+}
+QPushButton#savePathButton:pressed {
+    background-color: #2471a3;
+}
+
+/* --- File Operation Button Styles --- */
+QPushButton#importButton {
+    background-color: #3498db; /* Amethyst purple */
+    color: white;
+    border-color: #2980b9;
+}
+QPushButton#importButton:hover {
+    background-color: #3498db;
+}
+QPushButton#importButton:pressed {
+    background-color: #2980b9;
+}
+
+QPushButton#saveButton {
+    background-color: #3498db; /* Sunflower orange */
+    color: white;
+    border-color: #2980b9;
+}
+QPushButton#saveButton:hover {
+    background-color: #3498db;
+}
+QPushButton#saveButton:pressed {
+    background-color: #3498db;
+}
+
+
+/* --- Styles for Form Widgets --- */
+
+QFormLayout > QLabel {
+    font-size: 18px; /* Increased font size */
+    font-weight: bold;
+    color: #2c3e50;
+    padding-top: 5px;
+}
+
+QGroupBox {
+    font-size: 16px;
+    font-weight: bold;
+    color: #34495e;
+    border: 1px solid #d1d5da;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top center;
+    padding: 0 10px;
+}
+
+QComboBox, QSpinBox, QDoubleSpinBox {
+    padding: 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 8px;
+    font-size: 17px; /* Increased font size */
+    background-color: white;
+    min-width: 100px;
+}
+QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {
+    border-color: #3498db;
+}
+QComboBox QAbstractItemView {
+    border: 1px solid #bdc3c7;
+    background-color: white;
+    selection-background-color: #3498db;
+}
+
+/* --- SpinBox Arrow Adjustments --- */
+QSpinBox::up-button, QSpinBox::down-button {
+    width: 30px; /* Increase the width of the button area */
+}
+
+QSpinBox::up-arrow, QSpinBox::down-arrow {
+    width: 12px; /* Set a larger size for the arrow icon */
+    height: 12px;
+}
+
+/* --- Container and Frame Styles --- */
+QWidget#controlsContainer, QWidget#exportControlsContainer, QWidget#paramsContainer {
+    background-color: #f4f6f8;
+    border-radius: 10px;
+    border: 1px solid #e1e4e8;
+    padding: 10px;
+}
+
+QWidget#controlsPanel {
+    background-color: #f4f6f8;
+    border-right: 1px solid #e1e4e8;
+}
+
+/* --- Label Styles --- */
+QLabel#instructionLabel {
+    font-size: 15px;
+    color: #586069; /* A softer gray */
+    padding: 10px;
+    text-align: center;
+}
+
+QLabel#trainingStatusLabel {
+    font-size: 20px;
+    font-weight: bold;
+    color: #34495e;
+    padding: 20px;
+}
+
+/* --- Styles for Compass Widget --- */
+
+QLabel#compassTitle {
+    font-size: 14px;
+    font-weight: bold;
+    color: #34495e;
+    margin-bottom: 5px;
+}
+
+QLabel#compassValue {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+QPushButton#compassButton {
+    font-size: 20px;
+    font-weight: bold;
+    min-width: 35px;
+    max-width: 35px;
+    min-height: 35px;
+    max-height: 35px;
+    padding: 0;
+    border-radius: 17px;
+    border: 2px solid #bdc3c7;
+    background-color: white;
+}
+
+QPushButton#compassButton:hover {
+    background-color: #ecf0f1;
+    border-color: #3498db;
+}
+
+QPushButton#compassButton:checked {
+    background-color: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+/* --- Agent/Mode Selection and Toggle Buttons --- */
+
+QPushButton[class="agentButton"], 
+QPushButton[class="toggleButton"],
+QPushButton[class="modeButton"] {
+    background-color: white;
+    color: #2c3e50;
+    border: 2px solid #bdc3c7;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+QPushButton[class="agentButton"]:hover, 
+QPushButton[class="toggleButton"]:hover,
+QPushButton[class="modeButton"]:hover {
+    border-color: #3498db;
+    background-color: #ecf0f1;
+}
+
+QPushButton[class="agentButton"]:checked, 
+QPushButton[class="toggleButton"]:checked,
+QPushButton[class="modeButton"]:checked {
+    background-color: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+
+/* --- Loading Spinner --- */
+QWidget#loadingSpinner {
+    background-color: transparent;
+}
+
