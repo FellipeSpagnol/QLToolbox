@@ -232,7 +232,7 @@ class CompassWidget(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Reinforcement Learning GUI")
+        self.setWindowTitle("QLToolbox")
         screen = self.screen()
         if screen:
             screen_geometry = screen.availableGeometry()
@@ -345,7 +345,7 @@ class StartPage(QWidget):
         # --- Image Loading Section ---
         # Load a PNG file from the same directory as the script.
         # The file should be named 'logo.png'.
-        image_path = "logo.pdf"
+        image_path = "imgs/logo.pdf"
         pixmap = QPixmap(image_path)
 
         # Check if the image was loaded successfully. If not, print a warning.
@@ -359,15 +359,15 @@ class StartPage(QWidget):
         image_label = QLabel()
         image_label.setPixmap(
             pixmap.scaled(
-                100,
-                100,
+                200,
+                200,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
         )
         image_label.setObjectName("titleImage")
         image_label.setAlignment(
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight
+            Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight
         )
         header_layout.addWidget(image_label)
 
@@ -378,7 +378,7 @@ class StartPage(QWidget):
         title_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.setSpacing(20)
 
-        label = QLabel("RL Environment Setup")
+        label = QLabel("Q-Learning Path Planning Toolbox")
         label.setObjectName("titleLabel")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
