@@ -20,7 +20,7 @@ class Oriented2DGrid:
             "nearby_obs": 0.1,
         },
         obs_grid: Optional[np.ndarray] = None,
-        random_start_percentage: float = 0.1,
+        random_start_percentage: float = 0.6,
     ) -> None:
         # State space definition
         self._x_size, self._y_size = grid_size
@@ -244,16 +244,16 @@ class QLAgent:
         self,
         state_shape: Tuple[int, int, int],
         n_actions: int,
-        learning_rate: float = 0.1,
+        learning_rate: float = 0.2,
         discount_factor: float = 0.9,
         e_greedy_type: str = "exponential",
-        epsilo_start: float = 1.0,
+        epsilon_start: float = 1.0,
     ) -> None:
         # Hyperparameters for Q-Learning
         self._alpha = learning_rate
         self._gamma = discount_factor
         self._e_greedy_type = e_greedy_type
-        self._epsilon_start = epsilo_start
+        self._epsilon_start = epsilon_start
         self.epsilon = self._epsilon_start
 
         # Q-Table initialization
@@ -309,11 +309,18 @@ def train(
     agent: QLAgent,
     environment: Oriented2DGrid,
     n_episodes: int = 20000,
-    verbose: bool = False,
+    verbose: bool = True,
     verbose_interval: int = 1000,
+    enable_early_stopping: bool = True,
+    early_stopping_criterion: str = "reward_plateau",
+    early_stop_window_size: int = 500,
+    early_stop_min_improvement: float = 0.1,
+    early_stop_patience: int = 3,
+    q_delta_threshold: float = 1e-4,
+    q_delta_check_interval: int = 100,
 ) -> Dict[str, List[Any]]:
-    data_backup: Dict[str, List[Any]] = {}
 
+    data_backup: Dict[str, List[Any]] = {}
     rewards_history: list[float] = []
     epsilon_history: list[float] = []
 
@@ -324,32 +331,79 @@ def train(
         * 2
     )
 
+    patience_counter = 0
+    q_table_old = (
+        agent.q_table.copy()
+        if enable_early_stopping and early_stopping_criterion == "q_table_stability"
+        else None
+    )
+
     for episode in range(n_episodes):
         state = environment.reset()
         total_episode_reward = 0.0
         finished = False
 
         for step in range(max_steps_per_episode):
-            action = agent.choose_action(state)  # Action selection
-            new_state, reward, finished = environment.step(action)  # Environment step
-            agent.update_q_table(state, action, reward, new_state)  # Q-Table update
-
-            # State update
+            action = agent.choose_action(state)
+            new_state, reward, finished = environment.step(action)
+            agent.update_q_table(state, action, reward, new_state)
             state = new_state
             total_episode_reward += reward
-
-            if finished:  # Episode termination check
+            if finished:
                 break
 
-        agent.update_exploration_rate(n_episodes)  # Decay exploration rate
-
-        # Individual Data backup update
+        agent.update_exploration_rate(n_episodes)
         rewards_history.append(total_episode_reward)
         epsilon_history.append(agent.epsilon)
 
-        # Console Logging
         if verbose and (episode + 1) % verbose_interval == 0:
             print(f"Episode {episode + 1}/{n_episodes} | Epsilon: {agent.epsilon:.3f}")
+
+        if enable_early_stopping:
+            if (
+                early_stopping_criterion == "reward_plateau"
+                and episode >= 2 * early_stop_window_size
+            ):
+                recent_avg_reward = np.mean(rewards_history[-early_stop_window_size:])
+                previous_avg_reward = np.mean(
+                    rewards_history[
+                        -2 * early_stop_window_size : -early_stop_window_size
+                    ]
+                )
+                improvement = recent_avg_reward - previous_avg_reward
+                if improvement < early_stop_min_improvement:
+                    patience_counter += 1
+                else:
+                    patience_counter = 0
+
+                if patience_counter >= early_stop_patience:
+                    print(
+                        f"\n--- Early Stopping (Reward Plateau) at Episode {episode + 1} ---"
+                    )
+                    print(f"Average reward has not improved sufficiently.")
+                    break
+
+            elif (
+                early_stopping_criterion == "q_table_stability"
+                and (episode + 1) % q_delta_check_interval == 0
+            ):
+                if q_table_old is not None:
+                    delta = np.sum(np.abs(agent.q_table - q_table_old))
+                else:
+                    delta = float("inf")
+                q_table_old = agent.q_table.copy()
+
+                if delta < q_delta_threshold:
+                    patience_counter += 1
+                else:
+                    patience_counter = 0
+
+                if patience_counter >= early_stop_patience:
+                    print(
+                        f"\n--- Early Stopping (Q-Table Stability) at Episode {episode + 1} ---"
+                    )
+                    print(f"Q-Table has converged. Total delta: {delta:.6f}")
+                    break
 
     data_backup["rewards_history"] = rewards_history
     data_backup["epsilon_history"] = epsilon_history

@@ -140,25 +140,16 @@ class TrainingWorker(QObject):
             actions_type=action_type,
             reward_gains=self.reward_params,
             obs_grid=obs_grid_for_core,
-            random_start_percentage=0.6,
         )
 
         agent = QLAgent(
             state_shape=env.state_shape,
             n_actions=env.n_actions,
-            learning_rate=0.2,
-            discount_factor=0.99,
-            e_greedy_type="exponential",
-            epsilo_start=0.9,
         )
 
-        n_episodes = 20000
         metrics = train(
             agent,
             env,
-            n_episodes=n_episodes,
-            verbose=True,
-            verbose_interval=n_episodes // 10,
         )
 
         print("Training finished.")
@@ -325,7 +316,7 @@ class MainWindow(QMainWindow):
 
     def reset_application(self):
         print("Resetting application for new training.")
-        self.data = AppData()
+        # self.data = AppData()
         self.trained_agent = None
         self.trained_env = None
         self.training_metrics = None
