@@ -956,6 +956,13 @@ class InteractiveResultsPage(QWidget):
         self.visualize_button = QPushButton("Visualize Path")
         self.visualize_button.setProperty("class", "navigation")
 
+        # --- NEW BUTTON: ADD OBSTACLES ---
+        self.add_obs_button = QPushButton("Add Obstacles")
+        self.add_obs_button.setCheckable(True)
+        self.add_obs_button.setProperty(
+            "class", "modeButton"
+        )  # Reuse existing class for consistent look
+
         export_controls_container = QWidget()
         export_controls_container.setObjectName("exportControlsContainer")
         export_layout = QVBoxLayout(export_controls_container)
@@ -984,6 +991,7 @@ class InteractiveResultsPage(QWidget):
         controls_layout.addSpacing(20)
         controls_layout.addWidget(self.start_compass)
         controls_layout.addSpacing(20)
+        controls_layout.addWidget(self.add_obs_button)  # Added button to layout
         controls_layout.addWidget(self.visualize_button)
         controls_layout.addSpacing(20)
         controls_layout.addWidget(export_controls_container)
@@ -1050,7 +1058,13 @@ class InteractiveResultsPage(QWidget):
         )
         self.ax.set_xlim([-0.5, W - 0.5])
         self.ax.set_ylim([-0.5, H - 0.5])
-        self.ax.set_title("Click a cell to select a start, then visualize")
+
+        # Update Title based on mode
+        if self.add_obs_button.isChecked():
+            self.ax.set_title("Mode: ADDING OBSTACLES (Click to place/remove)")
+        else:
+            self.ax.set_title("Click a cell to select a start, then visualize")
+
         self.ax.set_xlabel("Columns (X)")
         self.ax.set_ylabel("Rows (Y)")
         legend_elements = [
@@ -1078,17 +1092,58 @@ class InteractiveResultsPage(QWidget):
     def on_canvas_click(self, event: MouseEvent):
         if not event.inaxes:
             return
-        self.current_path = None
+
         env = self.main_window.trained_env
         if not env:
             return
 
         c, r = int(round(float(event.xdata))), int(round(float(event.ydata)))
         W, H = env._x_size, env._y_size
-        obs_grid = env._obs_grid
 
         if not (0 <= c < W and 0 <= r < H):
             return
+
+        # --- LOGIC FOR ADDING OBSTACLES ---
+        if self.add_obs_button.isChecked():
+            # Check if trying to overwrite goal
+            goal_x, goal_y, _ = env._goal
+            if (c, r) == (goal_x, goal_y):
+                QMessageBox.warning(
+                    self, "Invalid Operation", "Cannot place obstacle on Goal."
+                )
+                return
+
+            # Toggle obstacle
+            env._obs_grid[c, r] = 1 - env._obs_grid[c, r]
+
+            # IMPORTANT: Recompute safety matrix so the agent "sees" the new wall
+            env._nearby_obs_grid = env._precompute_safety_penalty_matrix(min_dist=2.0)
+
+            # Clear current path visualization as it might be invalid now
+            self.current_path = None
+
+            self.draw_base_grid()
+
+            # If start pos still exists, redraw it
+            if self.selected_start_pos:
+                sx, sy = self.selected_start_pos
+                self.ax.scatter(
+                    sx,
+                    sy,
+                    marker="o",
+                    c=self.cmap.colors[1],
+                    s=150,
+                    zorder=5,
+                    label="Selected Start",
+                    edgecolors="black",
+                )
+                self.canvas.draw()
+            return
+
+        # --- ORIGINAL LOGIC (SELECT START) ---
+        self.current_path = None
+        obs_grid = env._obs_grid
+
         if obs_grid[c, r] == 1:
             QMessageBox.warning(
                 self, "Invalid Start", "The selected cell is an obstacle."
