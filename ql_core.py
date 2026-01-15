@@ -89,7 +89,9 @@ class Oriented2DGrid:
             ]
         return actions
 
-    def step(self, action_index: int) -> Tuple[Tuple[int, int, int], float, bool]:
+    def step(
+        self, action_index: int
+    ) -> Tuple[Tuple[int, int, int], Dict[str, float], bool]:
         current_state = self._state
         action = self._actions[action_index]
 
@@ -130,31 +132,43 @@ class Oriented2DGrid:
         current_state: Tuple[int, int, int],
         action: Tuple[int, int, int],
         new_state: Tuple[int, int, int],
-    ) -> float:
-
+    ) -> Dict[str, float]:
+        # Navigation Reward
         if new_state == self._goal:  # Goal reached
-            return self._reward_gains["goal"]
+            navigation_reward = self._reward_gains["goal"]
+        else:
+            # Move Penalty
+            rmove = -self._reward_gains["move"] * float(
+                np.linalg.norm([action[0], action[1]])
+            )
+
+            # Turn Penalty
+            turn_angle = abs(action[2])
+            rturn = -self._reward_gains["turn"] * turn_angle
+
+            # Full Reward
+            navigation_reward = rmove + rturn
+
+        # Safety Reward
         if not self._is_valid_state(current_state, new_state):  # Invalid move
-            return -self._reward_gains["invalid"]
+            safety_reward = -self._reward_gains["invalid"]
+        else:
+            # Obstacle Safety Penalty
+            robs = (
+                -self._reward_gains["nearby_obs"]
+                * self._nearby_obs_grid[new_state[0], new_state[1]]
+            )
 
-        rmove = -self._reward_gains["move"] * np.linalg.norm(
-            [action[0], action[1]]
-        )  # Move Penalty
+            # Full Reward
+            safety_reward = robs
 
-        # Turn Penalty
-        turn_angle = abs(action[2])
-        rturn = -self._reward_gains["turn"] * turn_angle
+        # Full reward dict
+        reward_dict = {
+            "navigation": navigation_reward,
+            "safety": safety_reward,
+        }
 
-        # Obstacle Safety Penalty
-        robs = (
-            -self._reward_gains["nearby_obs"]
-            * self._nearby_obs_grid[new_state[0], new_state[1]]
-        )
-
-        # Sum all rewards
-        reward = rmove + rturn + robs
-
-        return reward
+        return reward_dict
 
     def _is_valid_state(
         self,
@@ -244,6 +258,7 @@ class QLAgent:
         self,
         state_shape: Tuple[int, int, int],
         n_actions: int,
+        agents_keys: List[str] = ["navigation", "safety"],
         learning_rate: float = 0.2,
         discount_factor: float = 0.9,
         e_greedy_type: str = "exponential",
@@ -257,7 +272,11 @@ class QLAgent:
         self.epsilon = self._epsilon_start
 
         # Q-Table initialization
+        self._agents_keys = agents_keys
         self._n_actions = n_actions
+        self.q_table_dict = {
+            key: np.zeros(state_shape + (n_actions,)) for key in agents_keys
+        }
         self.q_table = np.zeros(state_shape + (n_actions,))
 
     def choose_action(self, state: Tuple[int, int, int]) -> int:
@@ -272,17 +291,25 @@ class QLAgent:
         self,
         state: Tuple[int, int, int],
         action: int,
-        reward: float,
+        reward: Dict[str, float],
         new_state: Tuple[int, int, int],
     ) -> None:
-        old_value = self.q_table[state][action]
-        next_max = np.max(self.q_table[new_state])
+        for key in self._agents_keys:
+            agent_q_table = self.q_table_dict[key]
+            agent_reward = reward[key]
+            old_value = agent_q_table[state][action]
+            next_max_value = np.max(agent_q_table[new_state])
 
-        # Q-Learning formula
-        new_value = old_value + self._alpha * (
-            reward + self._gamma * next_max - old_value
+            # Q-Learning formula for updating individual Q-value
+            new_value = old_value + self._alpha * (
+                agent_reward + self._gamma * next_max_value - old_value
+            )
+            agent_q_table[state][action] = new_value
+
+        # Update combined Q-table
+        self.q_table[state][action] = sum(
+            self.q_table_dict[key][state][action] for key in self._agents_keys
         )
-        self.q_table[state][action] = new_value
 
     def update_exploration_rate(self, n_episodes: int) -> None:
         # Update epsilon
@@ -348,7 +375,7 @@ def train(
             new_state, reward, finished = environment.step(action)
             agent.update_q_table(state, action, reward, new_state)
             state = new_state
-            total_episode_reward += reward
+            total_episode_reward += sum(reward.values())
             if finished:
                 break
 
