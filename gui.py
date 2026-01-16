@@ -88,7 +88,7 @@ class LoadingSpinner(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = self.rect().adjusted(5, 5, -5, -5)
-        pen = QPen(QColor("#3498db"), 8, Qt.SolidLine, Qt.RoundCap)
+        pen = QPen(QColor("#3498db"), 8, Qt.SolidLine, Qt.RoundCap)  # Type: ignore
         painter.setPen(pen)
         painter.drawArc(rect, self.angle * 16, 90 * 16)
 
@@ -1116,8 +1116,7 @@ class InteractiveResultsPage(QWidget):
             # Toggle obstacle
             env._obs_grid[c, r] = 1 - env._obs_grid[c, r]
 
-            # IMPORTANT: Recompute safety matrix so the agent "sees" the new wall
-            env._nearby_obs_grid = env._precompute_safety_penalty_matrix(min_dist=2.0)
+            # [REMOVED] Old precompute logic was here. New core is dynamic.
 
             # Clear current path visualization as it might be invalid now
             self.current_path = None
@@ -1192,14 +1191,20 @@ class InteractiveResultsPage(QWidget):
         eps_bak = agent.epsilon
         agent.epsilon = 0.0
 
-        env._state = (start_c, start_r, start_k)
+        # [UPDATED] Use helper to create proper dictionary state
+        env._state = env.get_state_from_pose(start_c, start_r, start_k)
         s = env._state
-        path: List[Tuple[int, int, int]] = [s]
+
+        # [UPDATED] Store only the navigation tuple in path list for compatibility
+        path: List[Tuple[int, int, int]] = [s["navigation"]]
+
         limit = env._x_size * env._y_size * 2
         for i in range(limit):
             a = agent.choose_action(s)
-            s, _, done = env.step(a)
-            path.append(s)
+            new_s, _, done = env.step(a)
+            s = new_s
+            path.append(s["navigation"])  # [UPDATED] Append tuple, not dict
+
             if done:
                 break
             if i == limit - 1:
