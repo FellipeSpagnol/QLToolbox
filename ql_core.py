@@ -55,7 +55,6 @@ class Oriented2DGrid:
         self._obs_grid = obs_grid
 
         # Precompute auxiliary data
-        self._nearby_obs_grid = self._precompute_safety_penalty_matrix(min_dist=2.0)
         self._valid_start_positions = (
             np.argwhere(self._obs_grid == 0)
             if self._obs_grid is not None
@@ -120,13 +119,17 @@ class Oriented2DGrid:
             current_state, action, new_state
         )  # Calculate reward considering potential new state
 
+        # Test validity of the new state for both navigation and safety
+        validity = self._is_valid_state(current_state, new_state)
+        is_valid_move = validity["navigation"] and validity["safety"]
+
         self._state = (
-            new_state
-            if self._is_valid_state(current_state, new_state)
-            else current_state
+            new_state if is_valid_move else current_state
         )  # Update state if the potential new state is valid
 
-        finished = self._state == self._goal  # Check if the episode is task is finished
+        finished = (
+            self._state["navigation"] == self._goal
+        )  # Check if the episode is task is finished
 
         return self._state, reward, finished
 
@@ -151,6 +154,12 @@ class Oriented2DGrid:
                 "safety": equivalent_sensor_values,
             }
             return self._state
+
+    def get_state_from_pose(self, x: int, y: int, theta_idx: int) -> StateDict:
+        """Helper para construir um estado completo a partir de uma posição arbitrária."""
+        pose = (x, y, theta_idx)
+        sensor_readings = self._get_sensor_values(pose)
+        return {"navigation": pose, "safety": sensor_readings}
 
     def _calculate_reward(
         self,
@@ -184,13 +193,12 @@ class Oriented2DGrid:
         ]:  # Invalid move (collision)
             safety_reward = -self._reward_gains["invalid"]
         else:
+            # Note: Test version (made by gemini)
+            sensor_readings = new_state["safety"]
+            danger_level = sum(sensor_readings)
+
             # Obstacle Safety Penalty
-            robs = (
-                -self._reward_gains["nearby_obs"]
-                * self._nearby_obs_grid[
-                    new_state["navigation"][0], new_state["navigation"][1]
-                ]
-            )
+            robs = -self._reward_gains["nearby_obs"] * danger_level
 
             # Full Reward
             safety_reward = robs
@@ -218,17 +226,18 @@ class Oriented2DGrid:
         )  # Check grid boundaries
 
         # Safety
-        if self._obs_grid is not None:
-            # # Collision with obstacle
-            # if self._obs_grid[xf, yf]:
-            #     return False
+        if self._obs_grid is not None and inside_grid:
+            # Diagonal corner check
+            corner1_is_obstacle = self._obs_grid[x, yf]
+            corner2_is_obstacle = self._obs_grid[xf, y]
 
-            # # Diagonal corner check
-            # corner1_is_obstacle = self._obs_grid[x, yf]
-            # corner2_is_obstacle = self._obs_grid[xf, y]
-
-            # if corner1_is_obstacle or corner2_is_obstacle:
-            #     return False
+            if self._obs_grid[xf, yf]:  # Collision with obstacle
+                no_collision = False
+            elif corner1_is_obstacle or corner2_is_obstacle:
+                no_collision = False
+            else:
+                no_collision = True
+        else:
             no_collision = True
 
         return {"navigation": inside_grid, "safety": no_collision}
@@ -295,32 +304,6 @@ class Oriented2DGrid:
             readings.append(val)
 
         return tuple(readings)
-
-    def _precompute_safety_penalty_matrix(
-        self,
-        min_dist: float,
-    ) -> np.ndarray:
-        if self._obs_grid is None:
-            return np.zeros((self._x_size, self._y_size))
-
-        coords = np.where(self._obs_grid == 1)
-        obstacle_coords = list(zip(coords[0], coords[1]))
-
-        if not obstacle_coords:
-            return np.zeros((self._x_size, self._y_size))
-
-        yy, xx = np.meshgrid(np.arange(self._y_size), np.arange(self._x_size))
-        grid_coords = np.stack([xx, yy], axis=-1)
-
-        nearby_obs_matrix = np.zeros((self._x_size, self._y_size), dtype=float)
-
-        for ox, oy in obstacle_coords:
-            dist_matrix = np.linalg.norm(grid_coords - (ox, oy), axis=2)
-            penalty_for_this_obstacle = min_dist - dist_matrix
-            penalty_for_this_obstacle[dist_matrix >= min_dist] = 0.0
-            nearby_obs_matrix += penalty_for_this_obstacle
-
-        return nearby_obs_matrix
 
     def _rad2index(self, angle: float) -> int:
         angle = angle % (2 * m.pi)  # Normalize angle to [0, 2π)
@@ -435,19 +418,13 @@ def train(
     rewards_history: list[float] = []
     epsilon_history: list[float] = []
 
-    max_steps_per_episode = (
-        environment.state_shape[0]
-        * environment.state_shape[1]
-        * environment.state_shape[2]
-        * 2
-    )
+    dims = environment.state_shape["navigation"]
+    max_steps_per_episode = dims[0] * dims[1] * dims[2] * 2
 
     patience_counter = 0
-    q_table_old = (
-        agent._q_table.copy()
-        if enable_early_stopping and early_stopping_criterion == "q_table_stability"
-        else None
-    )
+    q_table_old = None
+    if enable_early_stopping and early_stopping_criterion == "q_table_stability":
+        q_table_old = {k: v.copy() for k, v in agent._q_table.items()}
 
     for episode in range(n_episodes):
         state = environment.reset()
@@ -471,18 +448,18 @@ def train(
             print(f"Episode {episode + 1}/{n_episodes} | Epsilon: {agent.epsilon:.3f}")
 
         if enable_early_stopping:
+            # Critério 1: Plateau de Recompensa (Mantido igual)
             if (
                 early_stopping_criterion == "reward_plateau"
                 and episode >= 2 * early_stop_window_size
             ):
-                recent_avg_reward = np.mean(rewards_history[-early_stop_window_size:])
-                previous_avg_reward = np.mean(
+                recent_avg = np.mean(rewards_history[-early_stop_window_size:])
+                prev_avg = np.mean(
                     rewards_history[
                         -2 * early_stop_window_size : -early_stop_window_size
                     ]
                 )
-                improvement = recent_avg_reward - previous_avg_reward
-                if improvement < early_stop_min_improvement:
+                if (recent_avg - prev_avg) < early_stop_min_improvement:
                     patience_counter += 1
                 else:
                     patience_counter = 0
@@ -491,20 +468,26 @@ def train(
                     print(
                         f"\n--- Early Stopping (Reward Plateau) at Episode {episode + 1} ---"
                     )
-                    print(f"Average reward has not improved sufficiently.")
                     break
 
+            # Critério 2: Estabilidade da Q-Table (ATUALIZADO)
             elif (
                 early_stopping_criterion == "q_table_stability"
                 and (episode + 1) % q_delta_check_interval == 0
             ):
-                if q_table_old is not None:
-                    delta = np.sum(np.abs(agent._q_table - q_table_old))
+                total_delta = 0.0
+                if q_table_old is None:
+                    total_delta = float("inf")
                 else:
-                    delta = float("inf")
-                q_table_old = agent._q_table.copy()
+                    # Soma a diferença absoluta de cada sub-tabela (Nav + Safety)
+                    for key in agent._q_table:
+                        diff = np.sum(np.abs(agent._q_table[key] - q_table_old[key]))
+                        total_delta += diff
 
-                if delta < q_delta_threshold:
+                # Atualiza o backup
+                q_table_old = {k: v.copy() for k, v in agent._q_table.items()}
+
+                if total_delta < q_delta_threshold:
                     patience_counter += 1
                 else:
                     patience_counter = 0
@@ -513,7 +496,7 @@ def train(
                     print(
                         f"\n--- Early Stopping (Q-Table Stability) at Episode {episode + 1} ---"
                     )
-                    print(f"Q-Table has converged. Total delta: {delta:.6f}")
+                    print(f"Converged. Total delta: {total_delta:.6f}")
                     break
 
     data_backup["rewards_history"] = rewards_history
