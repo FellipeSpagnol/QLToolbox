@@ -1,12 +1,7 @@
 # Imports
 import numpy as np
 import math as m
-from typing import Optional, Union, List, Tuple, Dict, Literal, Any, TypedDict
-
-
-class StateDict(TypedDict):
-    navigation: Tuple[int, int, int]
-    safety: Tuple[int, ...]
+from typing import Optional, Union, List, Tuple, Dict, Literal, Any
 
 
 # Environment Class
@@ -27,22 +22,14 @@ class Oriented2DGrid:
         obs_grid: Optional[np.ndarray] = None,
         random_start_percentage: float = 0.6,
     ) -> None:
-        # Navigation State space definition
+        # State space definition
         self._x_size, self._y_size = grid_size
         self._psi_size: int = 8
-
-        # Safety State space definition
-        self._sensor_lines: int = 8
-        self._sensor_layers: int = 3
 
         # Initial and goal states
         self._start = (start[0], start[1], self._rad2index(start[2]))
         self._goal = (goal[0], goal[1], self._rad2index(goal[2]))
-
-        self._state: StateDict = {
-            "navigation": self._start,
-            "safety": tuple(0 for _ in range(self._sensor_lines)),
-        }
+        self._state = self._start
 
         # Action space definition
         self._angles = np.linspace(0, 2 * m.pi, self._psi_size, endpoint=False)
@@ -78,7 +65,7 @@ class Oriented2DGrid:
         def rint(x):
             return int(np.round(x))
 
-        angle = self._index2rad(self._state["navigation"][2])
+        angle = self._index2rad(self._state[2])
 
         if self._actions_type == "omni":  # Actions for omnidirectional movement
             actions = [
@@ -102,7 +89,9 @@ class Oriented2DGrid:
             ]
         return actions
 
-    def step(self, action_index: int) -> Tuple[StateDict, Dict[str, float], bool]:
+    def step(
+        self, action_index: int
+    ) -> Tuple[Tuple[int, int, int], Dict[str, float], bool]:
         current_state = self._state
         action = self._actions[action_index]
 
@@ -124,41 +113,29 @@ class Oriented2DGrid:
 
         return self._state, reward, finished
 
-    def reset(self) -> StateDict:
+    def reset(self) -> Tuple[int, int, int]:
         if np.random.random() < self._random_start_percentage:
             random_index = np.random.randint(len(self._valid_start_positions))
             xr, yr = self._valid_start_positions[random_index]
             psir = np.random.randint(self._psi_size)
 
-            random_position = (xr, yr, psir)
-            equivalent_sensor_values = self._get_sensor_values(random_position)
+            random_state = (xr, yr, psir)
 
-            self._state = {
-                "navigation": random_position,
-                "safety": equivalent_sensor_values,
-            }
-            return self._state
+            self._state = random_state
+            return random_state
         else:
-            equivalent_sensor_values = self._get_sensor_values(self._start)
-            self._state = {
-                "navigation": self._start,
-                "safety": equivalent_sensor_values,
-            }
-            return self._state
+            self._state = self._start
+            return self._start
 
     def _calculate_reward(
         self,
-        current_state: StateDict,
+        current_state: Tuple[int, int, int],
         action: Tuple[int, int, int],
-        new_state: StateDict,
+        new_state: Tuple[int, int, int],
     ) -> Dict[str, float]:
         # Navigation Reward
-        if new_state["navigation"] == self._goal:  # Goal reached
+        if new_state == self._goal:  # Goal reached
             navigation_reward = self._reward_gains["goal"]
-        elif not self._is_valid_state(current_state, new_state)[
-            "navigation"
-        ]:  # Invalid move (out of bounds)
-            navigation_reward = self._reward_gains["invalid"]
         else:
             # Move Penalty
             rmove = -self._reward_gains["move"] * float(
@@ -173,17 +150,13 @@ class Oriented2DGrid:
             navigation_reward = rmove + rturn
 
         # Safety Reward
-        if not self._is_valid_state(current_state, new_state)[
-            "safety"
-        ]:  # Invalid move (collision)
+        if not self._is_valid_state(current_state, new_state):  # Invalid move
             safety_reward = -self._reward_gains["invalid"]
         else:
             # Obstacle Safety Penalty
             robs = (
                 -self._reward_gains["nearby_obs"]
-                * self._nearby_obs_grid[
-                    new_state["navigation"][0], new_state["navigation"][1]
-                ]
+                * self._nearby_obs_grid[new_state[0], new_state[1]]
             )
 
             # Full Reward
@@ -199,54 +172,47 @@ class Oriented2DGrid:
 
     def _is_valid_state(
         self,
-        current_state: StateDict,
-        new_state: StateDict,
-    ) -> Dict[str, bool]:
-
-        # Navigation validity check
-        x, y, psi = current_state["navigation"]
-        xf, yf, psif = new_state["navigation"]
+        current_state: Tuple[int, int, int],
+        new_state: Tuple[int, int, int],
+    ) -> bool:
+        x, y, psi = current_state
+        xf, yf, psif = new_state
 
         inside_grid = (0 <= xf < self._x_size) and (
             0 <= yf < self._y_size
         )  # Check grid boundaries
 
-        # Safety
+        if not inside_grid:
+            return False
+
         if self._obs_grid is not None:
-            # # Collision with obstacle
-            # if self._obs_grid[xf, yf]:
-            #     return False
+            # Collision with obstacle
+            if self._obs_grid[xf, yf]:
+                return False
 
-            # # Diagonal corner check
-            # corner1_is_obstacle = self._obs_grid[x, yf]
-            # corner2_is_obstacle = self._obs_grid[xf, y]
+            # Diagonal corner check
+            corner1_is_obstacle = self._obs_grid[x, yf]
+            corner2_is_obstacle = self._obs_grid[xf, y]
 
-            # if corner1_is_obstacle or corner2_is_obstacle:
-            #     return False
-            no_collision = True
+            if corner1_is_obstacle or corner2_is_obstacle:
+                return False
 
-        return {"navigation": inside_grid, "safety": no_collision}
+        return True
 
     def _calculate_new_state(
         self,
-        current_state: StateDict,
+        current_state: Tuple[int, int, int],
         action: Tuple[int, int, int],
-    ) -> StateDict:
+    ) -> Tuple[int, int, int]:
 
-        x, y, psi = current_state["navigation"]
+        x, y, psi = current_state
         dx, dy, dpsi = action
 
         new_x = x + dx
         new_y = y + dy
         new_psi = (psi + dpsi) % self._psi_size
-        new_position = (new_x, new_y, new_psi)
 
-        new_sensor_values = self._get_sensor_values(new_position)
-
-        return {"navigation": new_position, "safety": new_sensor_values}
-
-    def _get_sensor_values(self, position: Tuple[int, int, int]) -> Tuple[int, ...]:
-        return tuple(0 for _ in range(self._sensor_lines))
+        return (new_x, new_y, new_psi)
 
     def _precompute_safety_penalty_matrix(
         self,
