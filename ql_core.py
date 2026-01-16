@@ -66,8 +66,14 @@ class Oriented2DGrid:
         self._random_start_percentage = random_start_percentage
 
     @property
-    def state_shape(self) -> Tuple[int, int, int]:
-        return (self._x_size, self._y_size, self._psi_size)
+    def state_shape(self) -> Dict[str, Tuple[int, ...]]:
+        navigation_shape = (self._x_size, self._y_size, self._psi_size)
+        safety_shape = tuple([self._sensor_layers] * self._sensor_lines)
+
+        return {
+            "navigation": navigation_shape,
+            "safety": safety_shape,
+        }
 
     @property
     def n_actions(self) -> int:
@@ -246,7 +252,49 @@ class Oriented2DGrid:
         return {"navigation": new_position, "safety": new_sensor_values}
 
     def _get_sensor_values(self, position: Tuple[int, int, int]) -> Tuple[int, ...]:
-        return tuple(0 for _ in range(self._sensor_lines))
+        # Note: Test version (made by gemini)
+        current_x, current_y, current_theta_idx = position
+        readings = []
+
+        # Sensor anlges
+        sensor_angles = [0, 1, 2, 3, 4, 5, 6, 7]
+        max_range = 5
+
+        for offset in sensor_angles:
+            ray_dir_idx = (current_theta_idx + offset) % 8
+            angle_rad = self._index2rad(ray_dir_idx)
+
+            dx = int(np.round(np.cos(angle_rad)))
+            dy = int(np.round(np.sin(angle_rad)))
+
+            dist = max_range
+
+            for r in range(1, max_range + 1):
+                check_x = current_x + (dx * r)
+                check_y = current_y + (dy * r)
+
+                if (
+                    check_x < 0
+                    or check_x >= self._x_size
+                    or check_y < 0
+                    or check_y >= self._y_size
+                ):
+                    dist = r
+                    break
+                if self._obs_grid is not None and self._obs_grid[check_x, check_y] == 1:
+                    dist = r
+                    break
+
+            if dist <= 1:
+                val = 2
+            elif dist <= 3:
+                val = 1
+            else:
+                val = 0
+
+            readings.append(val)
+
+        return tuple(readings)
 
     def _precompute_safety_penalty_matrix(
         self,
@@ -290,9 +338,8 @@ class QLAgent:
 
     def __init__(
         self,
-        state_shape: Tuple[int, int, int],
+        state_shape: Dict[str, Tuple[int, ...]],
         n_actions: int,
-        agents_keys: List[str] = ["navigation", "safety"],
         learning_rate: float = 0.2,
         discount_factor: float = 0.9,
         e_greedy_type: str = "exponential",
@@ -306,44 +353,47 @@ class QLAgent:
         self.epsilon = self._epsilon_start
 
         # Q-Table initialization
-        self._agents_keys = agents_keys
         self._n_actions = n_actions
-        self.q_table_dict = {
-            key: np.zeros(state_shape + (n_actions,)) for key in agents_keys
+        self._q_table = {
+            "navigation": np.zeros(state_shape["navigation"] + (n_actions,)),
+            "safety": np.zeros(state_shape["safety"] + (n_actions,)),
         }
-        self.q_table = np.zeros(state_shape + (n_actions,))
 
-    def choose_action(self, state: Tuple[int, int, int]) -> int:
+    def choose_action(self, state: StateDict) -> int:
         if np.random.random() < self.epsilon:
             # Exploration: select a random action
             return np.random.randint(self._n_actions)
         else:
             # Exploitation: select the best action based on Q-table
-            return int(np.argmax(self.q_table[state]))
+            total_q_values = np.zeros(self._n_actions)
+
+            for key in self._q_table.keys():
+                sub_state = state[key]  # type: ignore
+                q_values = self._q_table[key][sub_state]
+                total_q_values += q_values
+
+            return int(np.argmax(total_q_values))
 
     def update_q_table(
         self,
-        state: Tuple[int, int, int],
+        state: StateDict,
         action: int,
         reward: Dict[str, float],
-        new_state: Tuple[int, int, int],
+        new_state: StateDict,
     ) -> None:
-        for key in self._agents_keys:
-            agent_q_table = self.q_table_dict[key]
+        for key in self._q_table.keys():
+            agent_q_table = self._q_table[key]
             agent_reward = reward[key]
-            old_value = agent_q_table[state][action]
-            next_max_value = np.max(agent_q_table[new_state])
+            agent_state = state[key]  # type: ignore
+            agent_new_state = new_state[key]  # type: ignore
+            old_value = agent_q_table[agent_state][action]
+            next_max_value = np.max(agent_q_table[agent_new_state])
 
             # Q-Learning formula for updating individual Q-value
             new_value = old_value + self._alpha * (
                 agent_reward + self._gamma * next_max_value - old_value
             )
-            agent_q_table[state][action] = new_value
-
-        # Update combined Q-table
-        self.q_table[state][action] = sum(
-            self.q_table_dict[key][state][action] for key in self._agents_keys
-        )
+            agent_q_table[agent_state][action] = new_value
 
     def update_exploration_rate(self, n_episodes: int) -> None:
         # Update epsilon
@@ -394,7 +444,7 @@ def train(
 
     patience_counter = 0
     q_table_old = (
-        agent.q_table.copy()
+        agent._q_table.copy()
         if enable_early_stopping and early_stopping_criterion == "q_table_stability"
         else None
     )
@@ -449,10 +499,10 @@ def train(
                 and (episode + 1) % q_delta_check_interval == 0
             ):
                 if q_table_old is not None:
-                    delta = np.sum(np.abs(agent.q_table - q_table_old))
+                    delta = np.sum(np.abs(agent._q_table - q_table_old))
                 else:
                     delta = float("inf")
-                q_table_old = agent.q_table.copy()
+                q_table_old = agent._q_table.copy()
 
                 if delta < q_delta_threshold:
                     patience_counter += 1
