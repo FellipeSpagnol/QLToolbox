@@ -1,162 +1,76 @@
-QLToolbox: Q-Learning Path Planning Toolbox
+# QLToolbox
 
-⚠️ Status do Projeto: Em Desenvolvimento
+QLToolbox is a desktop application developed in Python for the study and application of Q-Learning, a reinforcement learning algorithm. The tool allows users to configure, train, and visualize Q-Learning agents in a 2D grid environment with obstacles.
 
-Este software está atualmente em fase ativa de desenvolvimento. Funcionalidades, APIs e interfaces podem sofrer alterações.
+## Description
 
-📖 Sobre o Projeto
+The main goal of this project is to provide an intuitive and interactive graphical interface for a better understanding of the Q-Learning algorithm. With this tool, it is possible to:
 
-O QLToolbox é uma aplicação desktop interativa projetada para simular, treinar e visualizar agentes de navegação autônoma utilizando algoritmos de Aprendizado por Reforço (especificamente Q-Learning).
+- Create custom 2D grid environments, adding or removing obstacles.
+- Import and export environment maps in `.npy` format.
+- Configure the agent's movement type (omnidirectional or differential).
+- Adjust the reward function parameters to change the agent's behavior.
+- Train the Q-Learning agent in a separate thread to not freeze the interface.
+- Interactively visualize the learned policy, generating paths from different starting points.
+- Export the generated paths in `.npy` format for other uses.
 
-O objetivo principal é oferecer uma ferramenta visual onde pesquisadores, estudantes ou entusiastas possam:
+## Technologies Used
 
-Desenhar ambientes de grade personalizados (mapas com obstáculos).
+- **Python 3**
+- **PySide6:** For the graphical user interface.
+- **NumPy:** For numerical operations and grid manipulation.
+- **Matplotlib:** For plotting the grid, paths, and policies.
 
-Configurar parâmetros de recompensa e tipos de agentes (Omnidirecional ou Diferencial).
+## Prerequisites
 
-Treinar o agente em tempo real.
+Before you begin, you will need to have [Python](https://www.python.org/downloads/) installed on your system (version 3.7 or higher is recommended).
 
-Visualizar a política aprendida e o caminho resultante.
+## Installation and Setup
 
-A ferramenta abstrai a complexidade matemática do Q-Learning através de uma interface gráfica amigável (GUI), permitindo experimentação rápida sem a necessidade de reescrever código para cada cenário.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/QLToolbox.git
+    cd QLToolbox
+    ```
 
-🚀 Tecnologias Utilizadas
+2.  **Create a virtual environment (recommended):**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
 
-O projeto foi construído utilizando uma stack robusta de Python para computação científica e interfaces gráficas:
+3.  **Install the dependencies:**
+    ```bash
+    pip install PySide6 numpy matplotlib
+    ```
 
-Linguagem: Python 3.8+
+## How to Use
 
-Interface Gráfica (GUI): PySide6 (Qt for Python)
+To run the application, simply execute the `gui.py` file from the root of the project:
 
-Computação Numérica: NumPy
-
-Visualização de Dados: Matplotlib (Integrado ao Qt via FigureCanvasQTAgg)
-
-Engine de Renderização: QtSvg (para ícones e vetores)
-
-📋 Pré-requisitos
-
-Antes de começar, certifique-se de ter instalado em sua máquina:
-
-Python 3.x: O interpretador Python deve estar acessível via terminal.
-
-pip: Gerenciador de pacotes do Python.
-
-🔧 Instalação e Configuração
-
-Siga os passos abaixo para configurar o ambiente de desenvolvimento local:
-
-1. Clonar o Repositório
-
-git clone [https://github.com/seu-usuario/ql-toolbox.git](https://github.com/seu-usuario/ql-toolbox.git)
-cd ql-toolbox
-
-
-2. Criar um Ambiente Virtual (Recomendado)
-
-É uma boa prática isolar as dependências do projeto.
-
-Windows:
-
-python -m venv venv
-.\venv\Scripts\activate
-
-
-Linux/macOS:
-
-python3 -m venv venv
-source venv/bin/activate
-
-
-3. Instalar Dependências
-
-Com base nas importações do código (gui.py e ql_core.py), instale as bibliotecas necessárias:
-
-pip install numpy matplotlib PySide6
-
-
-4. Configuração de Assets e Estilos
-
-O código espera uma estrutura de arquivos específica para funcionar corretamente. Certifique-se de que os seguintes arquivos estejam presentes no diretório raiz:
-
-Estilos: O arquivo style.qss deve estar na raiz (fornecido no repositório).
-
-Imagens: O arquivo gui.py tenta carregar uma imagem de logo. Crie uma pasta imgs e adicione o arquivo:
-
-Caminho esperado: ./imgs/logo.pdf
-
-Nota: Se o arquivo não existir, o sistema usará um placeholder cinza, mas lançará um aviso no console.
-
-🕹️ Como Usar
-
-Para iniciar a aplicação, execute o arquivo principal:
-
+```bash
 python gui.py
+```
 
+The application will open, and you can follow the steps in the interface to configure the environment, train the agent, and visualize the results.
 
-Fluxo de Trabalho da Aplicação:
+## Project Structure
 
-Tela Inicial: Clique em "Start Configuration".
+```
+QLToolbox/
+├── .gitignore
+├── gui.py            # Main file for the graphical interface (PySide6)
+├── ql_core.py        # Core logic of the Q-Learning algorithm and environment
+├── style.qss         # Stylesheet for the application's interface
+├── grids/            # Directory for saving and loading grid maps
+│   ├── comp_map.npy
+│   └── ...
+└── imgs/             # Directory for images and icons used in the UI
+    └── logo.pdf
+```
 
-Editor de Grade (Unified Grid):
-
-Defina o tamanho da grade (linhas e colunas).
-
-Use o mouse para desenhar obstáculos (botão esquerdo desenha/apaga).
-
-Posicione o Start (Início) e o Goal (Objetivo).
-
-Configure a orientação inicial e final (ou marque "Goal Orientation Irrelevant").
-
-Opções: Você pode Importar/Salvar mapas (.npy).
-
-Configuração de Treinamento:
-
-Tipo de Agente: Escolha entre Omnidirectional (move-se em 8 direções) ou Differential (modelo tipo tanque/carro).
-
-Recompensas: Ajuste os pesos para Autonomia (custo de movimento), Agilidade (custo de curva) e Segurança (proximidade de obstáculos).
-
-Treinamento:
-
-Acompanhe o processo de treinamento através do spinner de carregamento. O algoritmo Q-Learning rodará em uma thread separada.
-
-Resultados Interativos:
-
-Clique em qualquer célula livre do grid para definir um ponto de partida.
-
-Clique em "Visualize Path" para ver o caminho guloso (greedy) gerado pela política aprendida.
-
-Use "Add Obstacles" para testar a robustez da política (adicionar barreiras após o treino).
-
-Exporte o caminho gerado para análise posterior.
-
-📂 Estrutura do Projeto
-
-Abaixo está a organização dos principais arquivos do projeto:
-
-ql-toolbox/
-├── gui.py              # Ponto de entrada da aplicação. Gerencia a UI e navegação.
-├── ql_core.py          # Lógica de negócio: Ambiente (Grid) e Agente (Q-Learning).
-├── style.qss           # Folha de estilos (CSS-like) para customização do PySide6.
-├── .gitignore          # Arquivos ignorados pelo Git (caches, etc).
-└── imgs/               # [Necessário criar] Diretório para assets gráficos.
-    └── logo.pdf        # Logo exibido na tela inicial.
-
-
-⚙️ Detalhes de Implementação e Customização
-
-Lógica do Q-Learning (ql_core.py)
-
-O núcleo do aprendizado reside na classe QLAgent. Se você precisar ajustar hiperparâmetros de aprendizado que não estão na GUI, edite as seguintes variáveis padrão na inicialização da classe ou na função train:
-
-learning_rate (alpha): 0.2
-
-discount_factor (gamma): 0.9
-
-epsilon_start: 1.0 (Decaimento exponencial implementado).
-
-Estilização (style.qss)
-
-A aparência da aplicação é controlada externamente. Você pode alterar cores, fontes e bordas editando o arquivo style.qss sem precisar tocar no código Python.
-
-Desenvolvido com foco em Educação e Prototipagem em Robótica.
+- **`gui.py`**: Contains all the code related to the graphical interface, including windows, widgets, and event handling. It is the entry point of the application.
+- **`ql_core.py`**: Implements the main logic of the reinforcement learning environment. It includes the `Oriented2DGrid` class (the environment), the `QLAgent` class (the agent), and the `train` function.
+- **`style.qss`**: A Qt Stylesheet file used to customize the appearance of the graphical interface, providing a modern and consistent look.
+- **`grids/`**: A directory where environment maps (obstacle grids) can be saved and loaded from.
+- **`imgs/`**: Contains images and other visual assets used in the application's UI, such as the logo.
