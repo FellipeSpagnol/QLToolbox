@@ -5,7 +5,6 @@ import numpy as np
 from dataclasses import dataclass, fields
 import math
 
-# Use PySide6 as specified in the original code
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
