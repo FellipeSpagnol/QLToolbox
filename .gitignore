@@ -1,2 +1,28 @@
-/__pycache__/
-/.mypy_cache/
+# --- Ambiente Virtual ---
+# Ignora a pasta do venv para evitar binários específicos do seu Ubuntu no Git
+.venv/
+venv/
+ENV/
+
+# --- Python ---
+# Arquivos de cache que o Python gera para acelerar a execução
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# --- Interface e IDE ---
+# Configurações específicas do VS Code (opcional, mas recomendado)
+.vscode/
+# Se houver arquivos de log de erros do sistema
+*.log
+
+# --- Dados do Projeto (Binários e Pesados) ---
+# Ignora os mapas salvos em formato Numpy
+*.npy
+# Ignora arquivos de dados CSV caso você os utilize para exportar resultados
+*.csv
+
+# --- Interface Gráfica e Recursos ---
+# Caso você gere arquivos de recursos do Qt (.qrc)
+*_rc.py
