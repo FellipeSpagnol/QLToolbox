@@ -105,6 +105,8 @@ class Oriented2DGrid:
                 (0, 0, +1),
                 (0, 0, -1),
             ]
+        else:
+            raise ValueError("Invalid actions type.")
         return actions
 
     def step(self, action_index: int) -> Tuple[StateDict, Dict[str, float], bool]:
